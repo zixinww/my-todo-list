@@ -592,7 +592,23 @@
     <!-- ── Reminders section ── -->
     <div class="section-title">Reminders</div>
 
+    <!-- ── Important Dates & Events ── -->
+    <div class="section-title" style="margin-top: 0;">Important Dates &amp; Events</div>
+
+    <!-- Input row: event name + date picker + Add -->
+    <div class="events-input-row">
+      <input type="text"  id="event-name-input" placeholder="Event name…" />
+      <input type="date"  id="event-date-input" />
+      <button id="event-add-btn">Add</button>
+    </div>
+
+    <!-- Events are rendered here by JavaScript -->
+    <ul id="events-list">
+      <li class="events-empty" id="events-empty">No events yet — add one above!</li>
+    </ul>
+
     <!-- Weather card — JavaScript fills this in -->
+    <div class="section-title" style="margin-top: 22px;">Weather</div>
     <div class="weather-card" id="weather-card">
 
       <!-- Shown while fetching -->
@@ -626,21 +642,6 @@
       </div>
 
     </div>
-
-    <!-- ── Important Dates & Events ── -->
-    <div class="section-title" style="margin-top: 22px;">Important Dates &amp; Events</div>
-
-    <!-- Input row: event name + date picker + Add -->
-    <div class="events-input-row">
-      <input type="text"  id="event-name-input" placeholder="Event name…" />
-      <input type="date"  id="event-date-input" />
-      <button id="event-add-btn">Add</button>
-    </div>
-
-    <!-- Events are rendered here by JavaScript -->
-    <ul id="events-list">
-      <li class="events-empty" id="events-empty">No events yet — add one above!</li>
-    </ul>
 
   </div>
 
