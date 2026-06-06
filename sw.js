@@ -3,7 +3,7 @@
 // and the network. It intercepts requests and can serve files from a
 // local cache — that's how the app works offline.
 
-const CACHE_NAME = 'todo-pwa-v1';
+const CACHE_NAME = 'todo-pwa-v2';
 
 // The list of files that make up the app.
 // These get downloaded and saved the first time the user opens the app.
