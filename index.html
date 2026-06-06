@@ -765,11 +765,38 @@
       badge.childNodes[1].textContent = remaining === 1 ? ' task remaining' : ' tasks remaining';
     }
 
+    // ─── Tasks: load & save to localStorage ─────────────────────
+    // Tasks are stored as an array so they survive page refreshes,
+    // mirroring how events are persisted.
+    // Each task looks like: { id: 1234, text: "Buy milk", color: "#C9A29A", done: false }
+
+    function loadTasks() {
+      try {
+        return JSON.parse(localStorage.getItem('tasks') || '[]');
+      } catch {
+        return [];
+      }
+    }
+
+    // Read the current task items out of the DOM and save them.
+    // querySelectorAll returns items top-to-bottom (newest first).
+    function saveTasks() {
+      const tasks = [...document.querySelectorAll('.task-item')].map(li => ({
+        id:    li.dataset.id,
+        text:  li.querySelector('.task-text').textContent,
+        color: li.style.borderLeftColor,
+        done:  li.classList.contains('done'),
+      }));
+      localStorage.setItem('tasks', JSON.stringify(tasks));
+    }
+
     // ─── Core function: build and insert one task item ───────────
     // Both the Add button and shortcut buttons call this.
     // text  = the task label
     // color = the Morandi hex color for the left stripe
-    function buildTask(text, color) {
+    // done  = whether the task starts checked off (used when restoring)
+    // id    = unique id (defaults to now; passed in when restoring)
+    function buildTask(text, color, done = false, id = Date.now()) {
       if (!text) return;
 
       // Hide the "no tasks yet" message
@@ -778,14 +805,18 @@
       // Create the list item
       const li = document.createElement('li');
       li.classList.add('task-item');
+      li.dataset.id = id;
       li.style.borderLeftColor = color;
+      if (done) li.classList.add('done');
 
       // Checkbox — marks the task done when ticked
       const checkbox = document.createElement('input');
       checkbox.type = 'checkbox';
+      checkbox.checked = done;
       checkbox.addEventListener('change', () => {
         li.classList.toggle('done', checkbox.checked);
         updateCounter();
+        saveTasks();
       });
 
       // Task label text
@@ -804,6 +835,7 @@
           document.getElementById('empty-msg').style.display = '';
         }
         updateCounter();
+        saveTasks();
       });
 
       li.appendChild(checkbox);
@@ -815,7 +847,16 @@
       list.insertBefore(li, list.firstChild);
 
       updateCounter();
+      saveTasks();
     }
+
+    // ─── Restore saved tasks on page load ────────────────────────
+    // Saved order is newest-first; since buildTask inserts each item
+    // at the top, we replay the array in reverse to preserve order.
+    function renderTasks() {
+      loadTasks().reverse().forEach(t => buildTask(t.text, t.color, t.done, t.id));
+    }
+    renderTasks();
 
     // ─── Add a task from the text input ──────────────────────────
     // Reads the input field, calls buildTask, then clears the field
