@@ -770,6 +770,12 @@
     // mirroring how events are persisted.
     // Each task looks like: { id: 1234, text: "Buy milk", color: "#C9A29A", done: false }
 
+    // Returns today's date as a "YYYY-MM-DD" string for day comparison
+    function getToday() {
+      const d = new Date();
+      return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+    }
+
     function loadTasks() {
       try {
         return JSON.parse(localStorage.getItem('tasks') || '[]');
@@ -778,8 +784,8 @@
       }
     }
 
-    // Read the current task items out of the DOM and save them.
-    // querySelectorAll returns items top-to-bottom (newest first).
+    // Read the current task items out of the DOM and save them,
+    // along with today's date so we can detect when a new day starts.
     function saveTasks() {
       const tasks = [...document.querySelectorAll('.task-item')].map(li => ({
         id:    li.dataset.id,
@@ -788,6 +794,7 @@
         done:  li.classList.contains('done'),
       }));
       localStorage.setItem('tasks', JSON.stringify(tasks));
+      localStorage.setItem('tasks_date', getToday());
     }
 
     // ─── Core function: build and insert one task item ───────────
@@ -851,9 +858,17 @@
     }
 
     // ─── Restore saved tasks on page load ────────────────────────
-    // Saved order is newest-first; since buildTask inserts each item
-    // at the top, we replay the array in reverse to preserve order.
+    // If it's a new day, wipe the old tasks so the list starts fresh.
+    // Otherwise, reload whatever was saved last session.
     function renderTasks() {
+      const savedDate = localStorage.getItem('tasks_date');
+      if (savedDate !== getToday()) {
+        // New day — clear old tasks and record today's date
+        localStorage.removeItem('tasks');
+        localStorage.setItem('tasks_date', getToday());
+        return;
+      }
+      // Same day — restore tasks in their original order
       loadTasks().reverse().forEach(t => buildTask(t.text, t.color, t.done, t.id));
     }
     renderTasks();
