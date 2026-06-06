@@ -1,0 +1,31 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512">
+  <!-- Rounded square background in Warm Taupe -->
+  <rect width="512" height="512" rx="112" fill="#B5AFA0"/>
+
+  <!-- White card in the center -->
+  <rect x="88" y="72" width="336" height="368" rx="28" fill="#faf8f5"/>
+
+  <!-- Row 1: checked (Sage Green) -->
+  <rect x="128" y="140" width="36" height="36" rx="9" fill="#9EAF9A"/>
+  <polyline points="133,158 145,172 168,145"
+    fill="none" stroke="#faf8f5" stroke-width="9"
+    stroke-linecap="round" stroke-linejoin="round"/>
+  <rect x="184" y="151" width="152" height="14" rx="7" fill="#C9B99A"/>
+
+  <!-- Row 2: checked (Dusty Rose) -->
+  <rect x="128" y="210" width="36" height="36" rx="9" fill="#C9A29A"/>
+  <polyline points="133,228 145,242 168,215"
+    fill="none" stroke="#faf8f5" stroke-width="9"
+    stroke-linecap="round" stroke-linejoin="round"/>
+  <rect x="184" y="221" width="116" height="14" rx="7" fill="#e0dbd5"/>
+
+  <!-- Row 3: unchecked (Muted Blue outline) -->
+  <rect x="128" y="280" width="36" height="36" rx="9"
+    fill="none" stroke="#8FA3B1" stroke-width="7"/>
+  <rect x="184" y="291" width="168" height="14" rx="7" fill="#C9B99A"/>
+
+  <!-- Row 4: unchecked (Dusty Lavender outline) -->
+  <rect x="128" y="350" width="36" height="36" rx="9"
+    fill="none" stroke="#B5A8C4" stroke-width="7"/>
+  <rect x="184" y="361" width="132" height="14" rx="7" fill="#e0dbd5"/>
+</svg>

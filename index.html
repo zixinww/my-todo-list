@@ -1,0 +1,1118 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>My To-Do List</title>
+
+  <!-- PWA: link to the manifest so the browser knows this is installable -->
+  <link rel="manifest" href="manifest.json" />
+
+  <!-- PWA: colors the browser's address bar and system UI to match the app -->
+  <meta name="theme-color" content="#a89e98" />
+
+  <!-- PWA: iOS-specific tags (Safari doesn't fully read the manifest) -->
+  <meta name="apple-mobile-web-app-capable" content="yes" />
+  <meta name="apple-mobile-web-app-status-bar-style" content="default" />
+  <meta name="apple-mobile-web-app-title" content="To-Do" />
+  <link rel="apple-touch-icon" href="icon.svg" />
+
+  <style>
+    /* ─── Reset & Base ─────────────────────────────────────────── */
+    /* Remove default browser spacing and set a base font */
+    * {
+      margin: 0;
+      padding: 0;
+      box-sizing: border-box;
+    }
+
+    body {
+      font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+      background-color: #f0ece6;   /* warm off-white background */
+      color: #5a5450;              /* soft dark brown for text */
+      min-height: 100vh;
+      display: flex;
+      justify-content: center;
+      padding: 40px 16px;
+    }
+
+    /* ─── Main card container ───────────────────────────────────── */
+    .card {
+      background: #faf8f5;
+      border-radius: 18px;
+      padding: 36px 32px;
+      width: 100%;
+      max-width: 560px;
+      box-shadow: 0 4px 24px rgba(90, 84, 80, 0.10);
+    }
+
+    /* ─── Header: title + live date/time ───────────────────────── */
+    .header {
+      margin-bottom: 28px;
+      text-align: center;
+    }
+
+    .header h1 {
+      font-size: 1.8rem;
+      font-weight: 600;
+      color: #7a6e68;
+      letter-spacing: 0.5px;
+    }
+
+    /* Date line (e.g. "Friday, June 6 2026") */
+    #date-display {
+      margin-top: 6px;
+      font-size: 0.95rem;
+      color: #a89e98;
+    }
+
+    /* Live clock (e.g. "14:30:05") */
+    #time-display {
+      margin-top: 4px;
+      font-size: 1.5rem;
+      font-weight: 300;
+      color: #b5a8a0;
+      letter-spacing: 2px;
+    }
+
+    /* ─── Divider line ──────────────────────────────────────────── */
+    hr {
+      border: none;
+      border-top: 1px solid #e8e2dc;
+      margin-bottom: 24px;
+    }
+
+    /* ─── Input row: text field + Add button ────────────────────── */
+    .input-row {
+      display: flex;
+      gap: 10px;
+      margin-bottom: 14px;
+    }
+
+    /* The text field where the user types their task */
+    #task-input {
+      flex: 1;                     /* takes up all available space */
+      padding: 11px 16px;
+      border: 1.5px solid #ddd6cf;
+      border-radius: 10px;
+      font-size: 0.95rem;
+      background: #fff;
+      color: #5a5450;
+      outline: none;
+      transition: border-color 0.2s;
+    }
+
+    #task-input:focus {
+      border-color: #b5a8a0;      /* highlight border when typing */
+    }
+
+    /* The Add button */
+    #add-btn {
+      padding: 11px 22px;
+      background: #a89e98;
+      color: #fff;
+      border: none;
+      border-radius: 10px;
+      font-size: 0.95rem;
+      cursor: pointer;
+      transition: background 0.2s;
+    }
+
+    #add-btn:hover {
+      background: #978e88;
+    }
+
+    /* ─── Morandi color swatches ────────────────────────────────── */
+    /* These let the user pick a color tag for each task */
+    .color-label {
+      font-size: 0.82rem;
+      color: #a89e98;
+      margin-bottom: 8px;
+    }
+
+    .swatches {
+      display: flex;
+      gap: 8px;
+      flex-wrap: wrap;
+      margin-bottom: 24px;
+    }
+
+    /* Each swatch is a small clickable circle */
+    .swatch {
+      width: 26px;
+      height: 26px;
+      border-radius: 50%;
+      cursor: pointer;
+      border: 2.5px solid transparent;   /* invisible border by default */
+      transition: transform 0.15s, border-color 0.15s;
+    }
+
+    .swatch:hover {
+      transform: scale(1.15);
+    }
+
+    /* The currently selected swatch gets a visible border */
+    .swatch.selected {
+      border-color: #5a5450;
+    }
+
+    /* ─── Task list ─────────────────────────────────────────────── */
+    #task-list {
+      list-style: none;          /* remove default bullet points */
+      display: flex;
+      flex-direction: column;
+      gap: 10px;
+    }
+
+    /* ─── Individual task item ──────────────────────────────────── */
+    .task-item {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      background: #fff;
+      border-radius: 12px;
+      padding: 13px 16px;
+      border-left: 5px solid #ddd6cf;   /* color stripe on the left */
+      box-shadow: 0 1px 4px rgba(90, 84, 80, 0.07);
+      transition: opacity 0.2s;
+    }
+
+    /* Custom checkbox styling */
+    .task-item input[type="checkbox"] {
+      width: 18px;
+      height: 18px;
+      accent-color: #a89e98;     /* checkbox fill color */
+      cursor: pointer;
+      flex-shrink: 0;
+    }
+
+    /* The task text label */
+    .task-text {
+      flex: 1;
+      font-size: 0.95rem;
+      line-height: 1.4;
+      word-break: break-word;
+    }
+
+    /* Strike through and fade text when a task is checked off */
+    .task-item.done .task-text {
+      text-decoration: line-through;
+      color: #c0b8b2;
+    }
+
+    /* The delete (×) button on each task */
+    .delete-btn {
+      background: none;
+      border: none;
+      color: #c8bfb8;
+      font-size: 1.1rem;
+      cursor: pointer;
+      padding: 0 4px;
+      line-height: 1;
+      transition: color 0.2s;
+      flex-shrink: 0;
+    }
+
+    .delete-btn:hover {
+      color: #a07a78;            /* reddish-mauve on hover */
+    }
+
+    /* ─── Task counter bar ──────────────────────────────────────── */
+    /* Sits between the swatches and the list */
+    .counter-bar {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      margin-bottom: 14px;
+    }
+
+    /* The "X tasks remaining" pill badge */
+    .counter-badge {
+      background: #ede8e3;          /* same warm tone as the card background */
+      color: #a89e98;
+      font-size: 0.82rem;
+      padding: 5px 13px;
+      border-radius: 20px;          /* fully rounded pill shape */
+      letter-spacing: 0.3px;
+    }
+
+    /* The number inside the badge is slightly bolder */
+    .counter-badge strong {
+      color: #7a6e68;
+      font-weight: 600;
+    }
+
+    /* ─── Quick-add shortcut buttons ───────────────────────────── */
+    .shortcuts-label {
+      font-size: 0.82rem;
+      color: #a89e98;
+      margin-bottom: 8px;
+    }
+
+    /* Row of shortcut cards */
+    .shortcuts {
+      display: flex;
+      gap: 10px;
+      margin-bottom: 24px;
+      flex-wrap: wrap;
+    }
+
+    /* Each shortcut is a small card with a colored top accent */
+    .shortcut-btn {
+      flex: 1;
+      min-width: 90px;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: 5px;
+      padding: 12px 8px;
+      background: #fff;
+      border: 1.5px solid #e8e2dc;
+      border-top-width: 3px;         /* thicker top border = color accent */
+      border-radius: 12px;
+      cursor: pointer;
+      font-family: inherit;
+      transition: transform 0.15s, box-shadow 0.15s;
+    }
+
+    .shortcut-btn:hover {
+      transform: translateY(-2px);   /* gentle lift on hover */
+      box-shadow: 0 4px 14px rgba(90, 84, 80, 0.12);
+    }
+
+    /* The emoji icon */
+    .shortcut-icon {
+      font-size: 1.5rem;
+      line-height: 1;
+    }
+
+    /* The label under the icon */
+    .shortcut-label {
+      font-size: 0.72rem;
+      color: #7a6e68;
+      text-align: center;
+      line-height: 1.3;
+    }
+
+    /* Message shown when the list is empty */
+    .empty-msg {
+      text-align: center;
+      color: #c0b8b2;
+      font-size: 0.9rem;
+      padding: 20px 0;
+    }
+
+    /* ─── Reminders section ─────────────────────────────────────── */
+    /* Sits below the task list, separated by a divider */
+    .section-title {
+      font-size: 0.82rem;
+      color: #a89e98;
+      margin-bottom: 12px;
+      letter-spacing: 0.3px;
+    }
+
+    /* ─── Weather card ──────────────────────────────────────────── */
+    .weather-card {
+      background: #fff;
+      border-radius: 14px;
+      border-top: 3px solid #8FA3B1;   /* Muted Blue accent — sky feel */
+      box-shadow: 0 1px 4px rgba(90, 84, 80, 0.07);
+      padding: 18px 20px;
+      min-height: 80px;
+    }
+
+    /* Loading and error states — centered, muted */
+    .weather-status {
+      text-align: center;
+      color: #c0b8b2;
+      font-size: 0.88rem;
+      padding: 10px 0;
+    }
+
+    /* Top row: location badge on left, date on right */
+    .weather-top {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      margin-bottom: 14px;
+    }
+
+    .weather-location {
+      font-size: 0.82rem;
+      color: #7a6e68;
+      font-weight: 500;
+    }
+
+    .weather-date-label {
+      font-size: 0.78rem;
+      color: #b5a8a0;
+    }
+
+    /* Middle row: big emoji + temperature + description */
+    .weather-main {
+      display: flex;
+      align-items: center;
+      gap: 16px;
+      margin-bottom: 14px;
+    }
+
+    .weather-emoji {
+      font-size: 2.8rem;
+      line-height: 1;
+    }
+
+    .weather-temp {
+      font-size: 2rem;
+      font-weight: 300;
+      color: #7a6e68;
+      letter-spacing: -0.5px;
+    }
+
+    .weather-desc {
+      font-size: 0.88rem;
+      color: #a89e98;
+      margin-top: 2px;
+    }
+
+    /* Bottom row: three small detail pills */
+    .weather-details {
+      display: flex;
+      gap: 8px;
+      flex-wrap: wrap;
+    }
+
+    /* Each pill shows one detail (humidity, wind, feels-like) */
+    .weather-pill {
+      background: #f0ece6;
+      border-radius: 20px;
+      padding: 4px 12px;
+      font-size: 0.78rem;
+      color: #8a807a;
+      white-space: nowrap;
+    }
+
+    /* ─── Important Dates & Events ──────────────────────────────── */
+
+    /* Input row: name field + date picker + Add button */
+    .events-input-row {
+      display: flex;
+      gap: 8px;
+      flex-wrap: wrap;
+      margin-bottom: 12px;
+    }
+
+    /* The event name text field */
+    #event-name-input {
+      flex: 1;
+      min-width: 120px;
+      padding: 10px 14px;
+      border: 1.5px solid #ddd6cf;
+      border-radius: 10px;
+      font-size: 0.9rem;
+      background: #fff;
+      color: #5a5450;
+      outline: none;
+      font-family: inherit;
+      transition: border-color 0.2s;
+    }
+
+    #event-name-input:focus {
+      border-color: #b5a8a0;
+    }
+
+    /* The date picker */
+    #event-date-input {
+      padding: 10px 12px;
+      border: 1.5px solid #ddd6cf;
+      border-radius: 10px;
+      font-size: 0.9rem;
+      background: #fff;
+      color: #5a5450;
+      outline: none;
+      font-family: inherit;
+      cursor: pointer;
+      transition: border-color 0.2s;
+    }
+
+    #event-date-input:focus {
+      border-color: #b5a8a0;
+    }
+
+    /* The Add Event button */
+    #event-add-btn {
+      padding: 10px 18px;
+      background: #a89e98;
+      color: #fff;
+      border: none;
+      border-radius: 10px;
+      font-size: 0.9rem;
+      font-family: inherit;
+      cursor: pointer;
+      transition: background 0.2s;
+      white-space: nowrap;
+    }
+
+    #event-add-btn:hover {
+      background: #978e88;
+    }
+
+    /* The list of event cards */
+    #events-list {
+      list-style: none;
+      display: flex;
+      flex-direction: column;
+      gap: 10px;
+    }
+
+    /* Empty state message */
+    .events-empty {
+      text-align: center;
+      color: #c0b8b2;
+      font-size: 0.9rem;
+      padding: 16px 0;
+    }
+
+    /* Each event card — same left-stripe pattern as task items */
+    .event-item {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      background: #fff;
+      border-radius: 12px;
+      padding: 13px 16px;
+      border-left: 5px solid #ddd6cf;
+      box-shadow: 0 1px 4px rgba(90, 84, 80, 0.07);
+    }
+
+    /* Past events are slightly faded */
+    .event-item.past {
+      opacity: 0.55;
+    }
+
+    /* The countdown badge — "in 5 days", "Today!", etc. */
+    .event-countdown {
+      flex-shrink: 0;
+      background: #f0ece6;
+      border-radius: 20px;
+      padding: 4px 10px;
+      font-size: 0.72rem;
+      font-weight: 600;
+      color: #7a6e68;
+      text-align: center;
+      min-width: 58px;
+      line-height: 1.4;
+    }
+
+    /* Today and tomorrow get a warm highlight */
+    .event-countdown.soon {
+      background: #f5ede8;
+      color: #b5908a;
+    }
+
+    /* The text block: event name + formatted date */
+    .event-info {
+      flex: 1;
+      min-width: 0;
+    }
+
+    .event-name {
+      font-size: 0.92rem;
+      color: #5a5450;
+      font-weight: 500;
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+    }
+
+    .event-date-text {
+      font-size: 0.78rem;
+      color: #b5a8a0;
+      margin-top: 2px;
+    }
+
+    /* Delete button — same style as task delete */
+    .event-delete-btn {
+      background: none;
+      border: none;
+      color: #c8bfb8;
+      font-size: 1.1rem;
+      cursor: pointer;
+      padding: 0 4px;
+      line-height: 1;
+      transition: color 0.2s;
+      flex-shrink: 0;
+    }
+
+    .event-delete-btn:hover {
+      color: #a07a78;
+    }
+  </style>
+</head>
+
+<body>
+  <div class="card">
+
+    <!-- ── Header with title, date, and live clock ── -->
+    <div class="header">
+      <h1>My To-Do List</h1>
+      <div id="date-display"></div>   <!-- filled in by JavaScript -->
+      <div id="time-display"></div>
+    </div>
+
+    <hr />
+
+    <!-- ── Task input row ── -->
+    <div class="input-row">
+      <input type="text" id="task-input" placeholder="Add a new task…" />
+      <button id="add-btn">Add</button>
+    </div>
+
+    <!-- ── Quick-add shortcuts ── -->
+    <div class="shortcuts-label">Quick add:</div>
+    <div class="shortcuts" id="shortcuts"></div>
+
+    <!-- ── Color picker label and swatches ── -->
+    <div class="color-label">Pick a tag color:</div>
+    <div class="swatches" id="swatches"></div>
+
+    <!-- ── Counter bar: shows remaining tasks ── -->
+    <div class="counter-bar">
+      <div class="counter-badge" id="counter">
+        <strong>0</strong> tasks remaining
+      </div>
+    </div>
+
+    <!-- ── The task list (empty to start) ── -->
+    <ul id="task-list">
+      <li class="empty-msg" id="empty-msg">No tasks yet — add one above!</li>
+    </ul>
+
+    <hr style="margin-top: 24px;" />
+
+    <!-- ── Reminders section ── -->
+    <div class="section-title">Reminders</div>
+
+    <!-- Weather card — JavaScript fills this in -->
+    <div class="weather-card" id="weather-card">
+
+      <!-- Shown while fetching -->
+      <div class="weather-status" id="weather-loading">
+        Fetching your local weather…
+      </div>
+
+      <!-- Shown once data arrives (hidden until ready) -->
+      <div id="weather-content" style="display:none">
+        <div class="weather-top">
+          <div class="weather-location" id="weather-location">📍 —</div>
+          <div class="weather-date-label" id="weather-date-label"></div>
+        </div>
+        <div class="weather-main">
+          <div class="weather-emoji" id="weather-emoji"></div>
+          <div>
+            <div class="weather-temp" id="weather-temp"></div>
+            <div class="weather-desc" id="weather-desc"></div>
+          </div>
+        </div>
+        <div class="weather-details">
+          <div class="weather-pill" id="weather-humidity"></div>
+          <div class="weather-pill" id="weather-wind"></div>
+          <div class="weather-pill" id="weather-feels"></div>
+        </div>
+      </div>
+
+      <!-- Shown if location is denied or fetch fails -->
+      <div class="weather-status" id="weather-error" style="display:none">
+        ⚠️ Could not load weather. Please allow location access and reload.
+      </div>
+
+    </div>
+
+    <!-- ── Important Dates & Events ── -->
+    <div class="section-title" style="margin-top: 22px;">Important Dates &amp; Events</div>
+
+    <!-- Input row: event name + date picker + Add -->
+    <div class="events-input-row">
+      <input type="text"  id="event-name-input" placeholder="Event name…" />
+      <input type="date"  id="event-date-input" />
+      <button id="event-add-btn">Add</button>
+    </div>
+
+    <!-- Events are rendered here by JavaScript -->
+    <ul id="events-list">
+      <li class="events-empty" id="events-empty">No events yet — add one above!</li>
+    </ul>
+
+  </div>
+
+  <script>
+    // ─── Quick-add shortcut definitions ──────────────────────────
+    // Each shortcut has a label, an emoji icon, and its own Morandi color
+    const SHORTCUTS = [
+      { label: 'Grocery Shopping',      icon: '🛒', color: '#9EAF9A' },  // Sage Green
+      { label: 'Pick up prescriptions', icon: '💊', color: '#8FA3B1' },  // Muted Blue
+      { label: 'Workout',               icon: '💪', color: '#C9A29A' },  // Dusty Rose
+    ];
+
+    // ─── Morandi color palette ────────────────────────────────────
+    // Morandi colors are soft, muted, and earthy — named here for reference
+    const COLORS = [
+      { name: 'Dusty Rose',    hex: '#C9A29A' },
+      { name: 'Sage Green',    hex: '#9EAF9A' },
+      { name: 'Muted Blue',    hex: '#8FA3B1' },
+      { name: 'Warm Sand',     hex: '#C9B99A' },
+      { name: 'Dusty Lavender',hex: '#B5A8C4' },
+      { name: 'Dusty Mauve',   hex: '#B5908A' },
+      { name: 'Dusty Teal',    hex: '#8AAFA8' },
+      { name: 'Warm Taupe',    hex: '#B5AFA0' },
+      { name: 'Blush Beige',   hex: '#D4C4B0' },
+      { name: 'Dusty Plum',    hex: '#A090A0' },
+    ];
+
+    // The color the user has currently selected (defaults to the first one)
+    let selectedColor = COLORS[0].hex;
+
+    // ─── Build the color swatch buttons ──────────────────────────
+    const swatchContainer = document.getElementById('swatches');
+
+    COLORS.forEach((color) => {
+      const btn = document.createElement('button');
+      btn.classList.add('swatch');
+      btn.style.backgroundColor = color.hex;
+      btn.title = color.name;           // tooltip on hover
+
+      // Mark the first swatch as selected by default
+      if (color.hex === selectedColor) btn.classList.add('selected');
+
+      // When a swatch is clicked, update the selected color
+      btn.addEventListener('click', () => {
+        // Remove 'selected' from whichever swatch had it before
+        document.querySelectorAll('.swatch').forEach(s => s.classList.remove('selected'));
+        btn.classList.add('selected');
+        selectedColor = color.hex;
+      });
+
+      swatchContainer.appendChild(btn);
+    });
+
+    // ─── Build the shortcut buttons ──────────────────────────────
+    const shortcutContainer = document.getElementById('shortcuts');
+
+    SHORTCUTS.forEach((shortcut) => {
+      const btn = document.createElement('button');
+      btn.classList.add('shortcut-btn');
+      btn.style.borderTopColor = shortcut.color;   // color accent on top edge
+
+      // Emoji icon
+      const icon = document.createElement('span');
+      icon.classList.add('shortcut-icon');
+      icon.textContent = shortcut.icon;
+
+      // Text label
+      const lbl = document.createElement('span');
+      lbl.classList.add('shortcut-label');
+      lbl.textContent = shortcut.label;
+
+      btn.appendChild(icon);
+      btn.appendChild(lbl);
+
+      // Clicking a shortcut instantly adds that task with its preset color
+      btn.addEventListener('click', () => buildTask(shortcut.label, shortcut.color));
+
+      shortcutContainer.appendChild(btn);
+    });
+
+    // ─── Live date and clock ──────────────────────────────────────
+    // This function runs once per second to keep the display current
+    function updateClock() {
+      const now = new Date();
+
+      // Format the weekday and date, e.g. "Friday, June 6 2026"
+      const dateStr = now.toLocaleDateString('en-US', {
+        weekday: 'long',
+        year:    'numeric',
+        month:   'long',
+        day:     'numeric',
+      });
+
+      // Format the time with leading zeros, e.g. "09:05:03"
+      const hours   = String(now.getHours()).padStart(2, '0');
+      const minutes = String(now.getMinutes()).padStart(2, '0');
+      const seconds = String(now.getSeconds()).padStart(2, '0');
+      const timeStr = `${hours}:${minutes}:${seconds}`;
+
+      // Put the formatted strings into the page
+      document.getElementById('date-display').textContent = dateStr;
+      document.getElementById('time-display').textContent = timeStr;
+    }
+
+    updateClock();                        // run immediately so there's no blank flash
+    setInterval(updateClock, 1000);       // then repeat every 1000ms (1 second)
+
+    // ─── Update the task counter ─────────────────────────────────
+    // Counts all task items that are NOT checked off and updates the badge
+    function updateCounter() {
+      const all       = document.querySelectorAll('.task-item');
+      const done      = document.querySelectorAll('.task-item.done');
+      const remaining = all.length - done.length;
+
+      const badge  = document.getElementById('counter');
+      const number = badge.querySelector('strong');
+
+      number.textContent = remaining;
+
+      // Swap the label between "task" and "tasks" for proper grammar
+      badge.childNodes[1].textContent = remaining === 1 ? ' task remaining' : ' tasks remaining';
+    }
+
+    // ─── Core function: build and insert one task item ───────────
+    // Both the Add button and shortcut buttons call this.
+    // text  = the task label
+    // color = the Morandi hex color for the left stripe
+    function buildTask(text, color) {
+      if (!text) return;
+
+      // Hide the "no tasks yet" message
+      document.getElementById('empty-msg').style.display = 'none';
+
+      // Create the list item
+      const li = document.createElement('li');
+      li.classList.add('task-item');
+      li.style.borderLeftColor = color;
+
+      // Checkbox — marks the task done when ticked
+      const checkbox = document.createElement('input');
+      checkbox.type = 'checkbox';
+      checkbox.addEventListener('change', () => {
+        li.classList.toggle('done', checkbox.checked);
+        updateCounter();
+      });
+
+      // Task label text
+      const label = document.createElement('span');
+      label.classList.add('task-text');
+      label.textContent = text;
+
+      // Delete button
+      const del = document.createElement('button');
+      del.classList.add('delete-btn');
+      del.textContent = '×';
+      del.title = 'Delete task';
+      del.addEventListener('click', () => {
+        li.remove();
+        if (document.querySelectorAll('.task-item').length === 0) {
+          document.getElementById('empty-msg').style.display = '';
+        }
+        updateCounter();
+      });
+
+      li.appendChild(checkbox);
+      li.appendChild(label);
+      li.appendChild(del);
+
+      // Insert at the top of the list
+      const list = document.getElementById('task-list');
+      list.insertBefore(li, list.firstChild);
+
+      updateCounter();
+    }
+
+    // ─── Add a task from the text input ──────────────────────────
+    // Reads the input field, calls buildTask, then clears the field
+    function addTask() {
+      const input = document.getElementById('task-input');
+      const text  = input.value.trim();
+      if (!text) return;
+      buildTask(text, selectedColor);
+      input.value = '';
+      input.focus();
+    }
+
+    // ─── Wire up the Add button and the Enter key ─────────────────
+    document.getElementById('add-btn').addEventListener('click', addTask);
+
+    // Allow pressing Enter in the text field to add a task
+    document.getElementById('task-input').addEventListener('keydown', (e) => {
+      if (e.key === 'Enter') addTask();
+    });
+
+    // ─── Weather: code → emoji + description ─────────────────────
+    // Open-Meteo returns a numeric "weather code" — this table translates it
+    const WEATHER_CODES = {
+      0:  { emoji: '☀️',  desc: 'Clear sky' },
+      1:  { emoji: '🌤️', desc: 'Mainly clear' },
+      2:  { emoji: '⛅',  desc: 'Partly cloudy' },
+      3:  { emoji: '☁️',  desc: 'Overcast' },
+      45: { emoji: '🌫️', desc: 'Foggy' },
+      48: { emoji: '🌫️', desc: 'Icy fog' },
+      51: { emoji: '🌦️', desc: 'Light drizzle' },
+      53: { emoji: '🌦️', desc: 'Drizzle' },
+      55: { emoji: '🌧️', desc: 'Heavy drizzle' },
+      61: { emoji: '🌧️', desc: 'Light rain' },
+      63: { emoji: '🌧️', desc: 'Rain' },
+      65: { emoji: '🌧️', desc: 'Heavy rain' },
+      71: { emoji: '🌨️', desc: 'Light snow' },
+      73: { emoji: '🌨️', desc: 'Snow' },
+      75: { emoji: '❄️',  desc: 'Heavy snow' },
+      77: { emoji: '🌨️', desc: 'Snow grains' },
+      80: { emoji: '🌦️', desc: 'Rain showers' },
+      81: { emoji: '🌧️', desc: 'Heavy showers' },
+      82: { emoji: '⛈️',  desc: 'Violent showers' },
+      85: { emoji: '🌨️', desc: 'Snow showers' },
+      86: { emoji: '❄️',  desc: 'Heavy snow showers' },
+      95: { emoji: '⛈️',  desc: 'Thunderstorm' },
+      96: { emoji: '⛈️',  desc: 'Thunderstorm with hail' },
+      99: { emoji: '⛈️',  desc: 'Severe thunderstorm' },
+    };
+
+    // ─── Weather: main fetch function ────────────────────────────
+    // Steps: 1) get GPS coords  2) fetch city name  3) fetch weather
+    async function initWeather() {
+      // Check that the browser supports geolocation at all
+      if (!navigator.geolocation) {
+        showWeatherError();
+        return;
+      }
+
+      // Ask the browser for the user's current position
+      navigator.geolocation.getCurrentPosition(
+        async (pos) => {
+          const lat = pos.coords.latitude;
+          const lon = pos.coords.longitude;
+
+          try {
+            // Run both fetches at the same time to save time (Promise.all)
+            const [geoRes, weatherRes] = await Promise.all([
+
+              // Nominatim: converts GPS coords → city name (free, no API key)
+              fetch(
+                `https://nominatim.openstreetmap.org/reverse?lat=${lat}&lon=${lon}&format=json`,
+                { headers: { 'Accept-Language': 'en' } }
+              ),
+
+              // Open-Meteo: current weather (free, no API key)
+              fetch(
+                `https://api.open-meteo.com/v1/forecast` +
+                `?latitude=${lat}&longitude=${lon}` +
+                `&current=temperature_2m,apparent_temperature,weather_code,wind_speed_10m,relative_humidity_2m` +
+                `&temperature_unit=fahrenheit` +
+                `&wind_speed_unit=mph`
+              ),
+            ]);
+
+            const geoData     = await geoRes.json();
+            const weatherData = await weatherRes.json();
+
+            // Pull out the city name from the geocoding response
+            const addr = geoData.address || {};
+            const city = addr.city || addr.town || addr.village || addr.county || 'Your location';
+
+            // Pull out current weather values
+            const cur     = weatherData.current;
+            const code    = cur.weather_code;
+            const weather = WEATHER_CODES[code] || { emoji: '🌡️', desc: 'Unknown' };
+
+            // Format today's date for the weather card header
+            const today = new Date().toLocaleDateString('en-US', {
+              weekday: 'short', month: 'short', day: 'numeric',
+            });
+
+            // Fill in all the weather card elements
+            document.getElementById('weather-location').textContent   = `📍 ${city}`;
+            document.getElementById('weather-date-label').textContent = today;
+            document.getElementById('weather-emoji').textContent      = weather.emoji;
+            document.getElementById('weather-temp').textContent       = `${Math.round(cur.temperature_2m)}°F`;
+            document.getElementById('weather-desc').textContent       = weather.desc;
+            document.getElementById('weather-humidity').textContent   = `💧 ${cur.relative_humidity_2m}% humidity`;
+            document.getElementById('weather-wind').textContent       = `💨 ${Math.round(cur.wind_speed_10m)} mph`;
+            document.getElementById('weather-feels').textContent      = `🌡️ Feels like ${Math.round(cur.apparent_temperature)}°F`;
+
+            // Hide the loading message and show the content
+            document.getElementById('weather-loading').style.display = 'none';
+            document.getElementById('weather-content').style.display = 'block';
+
+          } catch (err) {
+            // Network error or bad response — show the error state
+            showWeatherError();
+          }
+        },
+        // Called if the user denies location permission
+        () => showWeatherError()
+      );
+    }
+
+    // Shows the error message inside the weather card
+    function showWeatherError() {
+      document.getElementById('weather-loading').style.display = 'none';
+      document.getElementById('weather-error').style.display   = 'block';
+    }
+
+    // Kick off the weather fetch when the page loads
+    initWeather();
+
+    // ─── Important Dates & Events ─────────────────────────────────
+
+    // Events are stored as an array in localStorage so they survive
+    // page refreshes and work offline.
+    // Each event looks like: { id: 1234, name: "Mom's Birthday", date: "2026-06-20" }
+
+    // Morandi colors cycled through for event left-stripe accents
+    const EVENT_COLORS = [
+      '#B5A8C4',  // Dusty Lavender
+      '#9EAF9A',  // Sage Green
+      '#C9A29A',  // Dusty Rose
+      '#8FA3B1',  // Muted Blue
+      '#8AAFA8',  // Dusty Teal
+      '#B5908A',  // Dusty Mauve
+    ];
+
+    // Load saved events from localStorage (returns [] if none saved yet)
+    function loadEvents() {
+      try {
+        return JSON.parse(localStorage.getItem('events') || '[]');
+      } catch {
+        return [];
+      }
+    }
+
+    // Save the current events array back to localStorage
+    function saveEvents(events) {
+      localStorage.setItem('events', JSON.stringify(events));
+    }
+
+    // Calculate how many days until a date string like "2026-06-20"
+    // Returns a negative number if the date has already passed
+    function daysUntil(dateStr) {
+      const today  = new Date();
+      today.setHours(0, 0, 0, 0);                    // strip time so we compare whole days
+      const target = new Date(dateStr + 'T00:00:00'); // force local midnight, not UTC
+      return Math.round((target - today) / (1000 * 60 * 60 * 24));
+    }
+
+    // Turn a number of days into a human-friendly label
+    function countdownLabel(days) {
+      if (days === 0)  return 'Today! 🎉';
+      if (days === 1)  return 'Tomorrow';
+      if (days === -1) return 'Yesterday';
+      if (days > 0)    return `in ${days} days`;
+      return `${Math.abs(days)} days ago`;
+    }
+
+    // Build and render all events into the list, sorted soonest-first
+    function renderEvents() {
+      const events = loadEvents();
+      const list   = document.getElementById('events-list');
+      const empty  = document.getElementById('events-empty');
+
+      // Clear everything except the empty message placeholder
+      list.querySelectorAll('.event-item').forEach(el => el.remove());
+
+      if (events.length === 0) {
+        empty.style.display = '';
+        return;
+      }
+      empty.style.display = 'none';
+
+      // Sort: upcoming first (by date ascending), then past events at the bottom
+      const sorted = [...events].sort((a, b) => {
+        const da = daysUntil(a.date);
+        const db = daysUntil(b.date);
+        // Separate upcoming (≥0) from past (<0)
+        if (da >= 0 && db < 0) return -1;
+        if (da < 0 && db >= 0) return  1;
+        return da - db;
+      });
+
+      sorted.forEach((event, index) => {
+        const days  = daysUntil(event.date);
+        const color = EVENT_COLORS[index % EVENT_COLORS.length];
+
+        // ── List item ──
+        const li = document.createElement('li');
+        li.classList.add('event-item');
+        if (days < 0) li.classList.add('past');   // fade past events
+        li.style.borderLeftColor = color;
+
+        // ── Countdown badge ──
+        const badge = document.createElement('div');
+        badge.classList.add('event-countdown');
+        if (days >= 0 && days <= 2) badge.classList.add('soon');  // warm highlight
+        badge.textContent = countdownLabel(days);
+
+        // ── Event name + date text ──
+        const info = document.createElement('div');
+        info.classList.add('event-info');
+
+        const nameEl = document.createElement('div');
+        nameEl.classList.add('event-name');
+        nameEl.textContent = event.name;
+
+        // Format the date nicely, e.g. "Fri, Jun 20 2026"
+        const dateEl = document.createElement('div');
+        dateEl.classList.add('event-date-text');
+        dateEl.textContent = new Date(event.date + 'T00:00:00').toLocaleDateString('en-US', {
+          weekday: 'short', month: 'short', day: 'numeric', year: 'numeric',
+        });
+
+        info.appendChild(nameEl);
+        info.appendChild(dateEl);
+
+        // ── Delete button ──
+        const del = document.createElement('button');
+        del.classList.add('event-delete-btn');
+        del.textContent = '×';
+        del.title = 'Remove event';
+        del.addEventListener('click', () => {
+          // Remove this event from the saved array by its unique id
+          const updated = loadEvents().filter(e => e.id !== event.id);
+          saveEvents(updated);
+          renderEvents();
+        });
+
+        li.appendChild(badge);
+        li.appendChild(info);
+        li.appendChild(del);
+        list.appendChild(li);
+      });
+    }
+
+    // Add a new event from the input fields
+    function addEvent() {
+      const nameInput = document.getElementById('event-name-input');
+      const dateInput = document.getElementById('event-date-input');
+
+      const name = nameInput.value.trim();
+      const date = dateInput.value;   // "YYYY-MM-DD" string from the date picker
+
+      if (!name || !date) return;    // require both fields
+
+      const events = loadEvents();
+      events.push({ id: Date.now(), name, date });
+      saveEvents(events);
+      renderEvents();
+
+      // Clear the inputs
+      nameInput.value = '';
+      dateInput.value = '';
+      nameInput.focus();
+    }
+
+    // Wire up the Add button and Enter key on the name field
+    document.getElementById('event-add-btn').addEventListener('click', addEvent);
+    document.getElementById('event-name-input').addEventListener('keydown', (e) => {
+      if (e.key === 'Enter') addEvent();
+    });
+
+    // Render saved events immediately when the page loads
+    renderEvents();
+
+    // ─── Register the Service Worker ─────────────────────────────
+    // This tells the browser to install sw.js in the background.
+    // Once registered, the service worker caches the app files so
+    // everything works offline on future visits.
+    if ('serviceWorker' in navigator) {
+      navigator.serviceWorker.register('./sw.js')
+        .catch((err) => console.warn('Service worker registration failed:', err));
+    }
+  </script>
+</body>
+</html>
