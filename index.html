@@ -766,15 +766,9 @@
     }
 
     // ─── Tasks: load & save to localStorage ─────────────────────
-    // Tasks are stored as an array so they survive page refreshes,
-    // mirroring how events are persisted.
-    // Each task looks like: { id: 1234, text: "Buy milk", color: "#C9A29A", done: false }
-
-    // Returns today's date as a "YYYY-MM-DD" string for day comparison
-    function getToday() {
-      const d = new Date();
-      return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
-    }
+    // Tasks are stored as an array so they survive page refreshes and
+    // tab closes. Each task looks like:
+    // { id: 1234, text: "Buy milk", color: "#C9A29A", done: false }
 
     function loadTasks() {
       try {
@@ -784,8 +778,7 @@
       }
     }
 
-    // Read the current task items out of the DOM and save them,
-    // along with today's date so we can detect when a new day starts.
+    // Read the current task items out of the DOM and save them to localStorage.
     function saveTasks() {
       const tasks = [...document.querySelectorAll('.task-item')].map(li => ({
         id:    li.dataset.id,
@@ -794,7 +787,6 @@
         done:  li.classList.contains('done'),
       }));
       localStorage.setItem('tasks', JSON.stringify(tasks));
-      localStorage.setItem('tasks_date', getToday());
     }
 
     // ─── Core function: build and insert one task item ───────────
@@ -858,17 +850,9 @@
     }
 
     // ─── Restore saved tasks on page load ────────────────────────
-    // If it's a new day, wipe the old tasks so the list starts fresh.
-    // Otherwise, reload whatever was saved last session.
+    // Reload whatever tasks were saved last session — they stay until
+    // the user manually deletes them.
     function renderTasks() {
-      const savedDate = localStorage.getItem('tasks_date');
-      if (savedDate !== getToday()) {
-        // New day — clear old tasks and record today's date
-        localStorage.removeItem('tasks');
-        localStorage.setItem('tasks_date', getToday());
-        return;
-      }
-      // Same day — restore tasks in their original order
       loadTasks().reverse().forEach(t => buildTask(t.text, t.color, t.done, t.id));
     }
     renderTasks();
