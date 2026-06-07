@@ -18,10 +18,11 @@
   <link rel="apple-touch-icon" href="icon.svg" />
 
   <!-- Firebase SDK (compat version — works without a build tool) -->
-  <!-- These three scripts give us Firebase's core, Auth, and Firestore -->
+  <!-- These scripts give us Firebase's core, Auth, Firestore, and Messaging -->
   <script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-app-compat.js"></script>
   <script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-auth-compat.js"></script>
   <script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-messaging-compat.js"></script>
 
   <style>
     /* ─── Reset & Base ─────────────────────────────────────────── */
@@ -971,10 +972,12 @@
     // Initialize Firebase with our project settings
     firebase.initializeApp(firebaseConfig);
 
-    // auth  = lets us sign users in and out
-    // db    = lets us read and write data in Firestore
-    const auth = firebase.auth();
-    const db   = firebase.firestore();
+    // auth      = lets us sign users in and out
+    // db        = lets us read and write data in Firestore
+    // messaging = lets us send/receive push notifications
+    const auth      = firebase.auth();
+    const db        = firebase.firestore();
+    const messaging = firebase.messaging();
 
     // currentUid holds the logged-in user's unique ID.
     // It is null when no one is signed in.
@@ -1033,6 +1036,9 @@
         // in Firestore (even from another device), the app updates instantly.
         listenToTasks(user.uid);
         listenToEvents(user.uid);
+
+        // Ask for notification permission and save this device's push token
+        setupPushNotifications(user.uid);
 
       } else {
         // ── USER IS SIGNED OUT ───────────────────────────────────────
@@ -1623,6 +1629,41 @@
 
     checkBirthday();
 
+
+    // ═══════════════════════════════════════════════════════════════
+    //  PUSH NOTIFICATIONS SETUP
+    //  Asks the user for permission, then saves a token to Firestore.
+    //  The Cloud Function reads this token to send notifications.
+    // ═══════════════════════════════════════════════════════════════
+
+    async function setupPushNotifications(uid) {
+      // Stop if the browser doesn't support notifications at all
+      if (!('Notification' in window)) return;
+
+      // Ask the user: "Allow notifications?" — they see a browser popup
+      const permission = await Notification.requestPermission();
+      if (permission !== 'granted') return;   // user said no — that's fine
+
+      try {
+        // Get a unique token for this specific device.
+        // The Cloud Function uses this token to target push notifications
+        // to exactly this phone/computer.
+        const token = await messaging.getToken({
+          vapidKey: 'BPMv36h_ICgwi1pCK1A_4Vg1zIaxREacM3WW38CRky1erH1zMaMXTul7ZETUSbrRmlUJEmaliMCW0SuKexS5pOg',
+        });
+
+        if (token) {
+          // Save the token under this user's Firestore document.
+          // arrayUnion means "add this token only if it's not already there"
+          // so we don't get duplicates if the user opens the app many times.
+          await db.collection('users').doc(uid).set({
+            fcmTokens: firebase.firestore.FieldValue.arrayUnion(token),
+          }, { merge: true });   // merge: true means don't overwrite other fields
+        }
+      } catch (err) {
+        console.warn('Push notification setup failed:', err);
+      }
+    }
 
     // ═══════════════════════════════════════════════════════════════
     //  SERVICE WORKER (PWA offline support)
