@@ -17,6 +17,12 @@
   <meta name="apple-mobile-web-app-title" content="To-Do" />
   <link rel="apple-touch-icon" href="icon.svg" />
 
+  <!-- Firebase SDK (compat version — works without a build tool) -->
+  <!-- These three scripts give us Firebase's core, Auth, and Firestore -->
+  <script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-app-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-auth-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore-compat.js"></script>
+
   <style>
     /* ─── Reset & Base ─────────────────────────────────────────── */
     /* Remove default browser spacing and set a base font */
@@ -34,6 +40,112 @@
       display: flex;
       justify-content: center;
       padding: 40px 16px;
+    }
+
+    /* ─── Login overlay ──────────────────────────────────────────── */
+    /* Shown on top of everything when the user is not signed in */
+    #login-overlay {
+      position: fixed;
+      inset: 0;                     /* cover the whole screen */
+      background: #f0ece6;
+      display: flex;                /* centered with flexbox */
+      align-items: center;
+      justify-content: center;
+      z-index: 200;
+      padding: 24px;
+    }
+
+    /* The white card in the middle of the login screen */
+    .login-card {
+      background: #faf8f5;
+      border-radius: 18px;
+      padding: 48px 36px;
+      width: 100%;
+      max-width: 400px;
+      box-shadow: 0 4px 24px rgba(90, 84, 80, 0.12);
+      text-align: center;
+    }
+
+    .login-icon {
+      font-size: 3rem;
+      margin-bottom: 16px;
+    }
+
+    .login-title {
+      font-size: 1.6rem;
+      font-weight: 600;
+      color: #7a6e68;
+      margin-bottom: 10px;
+    }
+
+    .login-subtitle {
+      font-size: 0.9rem;
+      color: #a89e98;
+      line-height: 1.6;
+      margin-bottom: 28px;
+    }
+
+    /* The "Sign in with Google" button */
+    .sign-in-btn {
+      display: inline-flex;
+      align-items: center;
+      gap: 10px;
+      padding: 13px 28px;
+      background: #a89e98;
+      color: #fff;
+      border: none;
+      border-radius: 12px;
+      font-size: 0.95rem;
+      font-family: inherit;
+      cursor: pointer;
+      transition: background 0.2s, transform 0.15s;
+    }
+
+    .sign-in-btn:hover {
+      background: #978e88;
+      transform: scale(1.03);
+    }
+
+    /* ─── User bar (shown at the top of the card when signed in) ── */
+    #user-bar {
+      display: none;               /* hidden by default; shown after sign-in */
+      align-items: center;
+      justify-content: center;
+      gap: 8px;
+      margin-top: 10px;
+      font-size: 0.82rem;
+      color: #a89e98;
+    }
+
+    /* The user's Google profile picture (small circle) */
+    #user-avatar {
+      width: 24px;
+      height: 24px;
+      border-radius: 50%;
+      object-fit: cover;
+    }
+
+    #user-name {
+      color: #7a6e68;
+      font-size: 0.85rem;
+    }
+
+    /* The small "Sign out" button */
+    #sign-out-btn {
+      background: none;
+      border: 1.5px solid #ddd6cf;
+      border-radius: 8px;
+      color: #a89e98;
+      font-size: 0.78rem;
+      padding: 3px 10px;
+      cursor: pointer;
+      font-family: inherit;
+      transition: border-color 0.2s, color 0.2s;
+    }
+
+    #sign-out-btn:hover {
+      border-color: #b5a8a0;
+      color: #7a6e68;
     }
 
     /* ─── Main card container ───────────────────────────────────── */
@@ -675,13 +787,40 @@
 </head>
 
 <body>
-  <div class="card">
+
+  <!-- ── Login overlay: shown when the user is NOT signed in ─────── -->
+  <!-- JavaScript will hide this after a successful Google sign-in   -->
+  <div id="login-overlay">
+    <div class="login-card">
+      <div class="login-icon">✅</div>
+      <h2 class="login-title">My To-Do List</h2>
+      <p class="login-subtitle">
+        Sign in with Google to sync your tasks and events across all your devices.
+      </p>
+      <!-- Clicking this button opens a Google sign-in popup -->
+      <button id="sign-in-btn" class="sign-in-btn">Sign in with Google</button>
+    </div>
+  </div>
+
+  <!-- ── Main app card: hidden until the user signs in ────────────── -->
+  <div class="card" id="main-app" style="display:none;">
 
     <!-- ── Header with title, date, and live clock ── -->
     <div class="header">
       <h1>My To-Do List</h1>
       <div id="date-display"></div>   <!-- filled in by JavaScript -->
       <div id="time-display"></div>
+
+      <!-- User bar: shows the signed-in user's name and a Sign out button -->
+      <!-- This is hidden until the user signs in -->
+      <div id="user-bar">
+        <!-- Profile picture from Google account -->
+        <img id="user-avatar" src="" alt="Profile picture" />
+        <!-- Display name from Google account -->
+        <span id="user-name"></span>
+        <!-- Clicking this signs the user out -->
+        <button id="sign-out-btn">Sign out</button>
+      </div>
     </div>
 
     <hr />
@@ -707,7 +846,7 @@
       </div>
     </div>
 
-    <!-- ── The task list (empty to start) ── -->
+    <!-- ── The task list (filled in by JavaScript via Firestore) ── -->
     <ul id="task-list">
       <li class="empty-msg" id="empty-msg">No tasks yet — add one above!</li>
     </ul>
@@ -727,7 +866,7 @@
       <button id="event-add-btn">Add</button>
     </div>
 
-    <!-- Events are rendered here by JavaScript -->
+    <!-- Events are rendered here by JavaScript via Firestore -->
     <ul id="events-list">
       <li class="events-empty" id="events-empty">No events yet — add one above!</li>
     </ul>
@@ -783,7 +922,105 @@
   </div>
 
   <script>
-    // ─── Quick-add shortcut definitions ──────────────────────────
+    // ═══════════════════════════════════════════════════════════════
+    //  FIREBASE SETUP
+    //  These lines connect our app to the Firebase project we created
+    // ═══════════════════════════════════════════════════════════════
+
+    const firebaseConfig = {
+      apiKey:            "AIzaSyCXN2BuSWnp3yr_IWeCWa-oBFaJq_mVbuM",
+      authDomain:        "my-to-do-list-7ffb4.firebaseapp.com",
+      projectId:         "my-to-do-list-7ffb4",
+      storageBucket:     "my-to-do-list-7ffb4.firebasestorage.app",
+      messagingSenderId: "79970970976",
+      appId:             "1:79970970976:web:44da3354cd38419b8dc205",
+    };
+
+    // Initialize Firebase with our project settings
+    firebase.initializeApp(firebaseConfig);
+
+    // auth  = lets us sign users in and out
+    // db    = lets us read and write data in Firestore
+    const auth = firebase.auth();
+    const db   = firebase.firestore();
+
+    // currentUid holds the logged-in user's unique ID.
+    // It is null when no one is signed in.
+    let currentUid = null;
+
+    // These hold "cleanup" functions for our real-time Firestore listeners.
+    // Calling them stops the listener (important when signing out).
+    let unsubscribeTasks  = null;
+    let unsubscribeEvents = null;
+
+
+    // ═══════════════════════════════════════════════════════════════
+    //  SIGN IN / SIGN OUT
+    // ═══════════════════════════════════════════════════════════════
+
+    // When the "Sign in with Google" button is clicked, open a Google popup
+    document.getElementById('sign-in-btn').addEventListener('click', () => {
+      const provider = new firebase.auth.GoogleAuthProvider();
+      // signInWithPopup opens a small Google login window
+      auth.signInWithPopup(provider).catch(err => {
+        console.error('Sign-in failed:', err);
+      });
+    });
+
+    // When the "Sign out" button is clicked, log the user out
+    document.getElementById('sign-out-btn').addEventListener('click', () => {
+      auth.signOut();
+    });
+
+    // ─── React to login / logout ─────────────────────────────────────
+    // Firebase calls this function automatically whenever the sign-in
+    // state changes (on page load, after signing in, after signing out).
+    auth.onAuthStateChanged((user) => {
+      if (user) {
+        // ── USER IS SIGNED IN ────────────────────────────────────────
+        currentUid = user.uid;   // save the user's unique ID
+
+        // Fill in the user bar (profile picture + name + sign-out button)
+        document.getElementById('user-name').textContent = user.displayName || user.email;
+        const avatar = document.getElementById('user-avatar');
+        if (user.photoURL) {
+          avatar.src            = user.photoURL;
+          avatar.style.display  = 'inline-block';
+        } else {
+          avatar.style.display  = 'none';
+        }
+        document.getElementById('user-bar').style.display = 'flex';
+
+        // Hide the login screen and show the main app
+        document.getElementById('login-overlay').style.display = 'none';
+        document.getElementById('main-app').style.display      = 'block';
+
+        // Start listening to this user's tasks and events in Firestore.
+        // onSnapshot gives us real-time updates — whenever data changes
+        // in Firestore (even from another device), the app updates instantly.
+        listenToTasks(user.uid);
+        listenToEvents(user.uid);
+
+      } else {
+        // ── USER IS SIGNED OUT ───────────────────────────────────────
+        currentUid = null;
+
+        // Stop the Firestore listeners to avoid errors after sign-out
+        if (unsubscribeTasks)  { unsubscribeTasks();  unsubscribeTasks  = null; }
+        if (unsubscribeEvents) { unsubscribeEvents(); unsubscribeEvents = null; }
+
+        // Show the login screen and hide the main app
+        document.getElementById('login-overlay').style.display = 'flex';
+        document.getElementById('main-app').style.display      = 'none';
+        document.getElementById('user-bar').style.display      = 'none';
+      }
+    });
+
+
+    // ═══════════════════════════════════════════════════════════════
+    //  QUICK-ADD SHORTCUTS & COLOR SWATCHES
+    // ═══════════════════════════════════════════════════════════════
+
     // Each shortcut has a label, an emoji icon, and its own Morandi color
     const SHORTCUTS = [
       { label: 'Grocery Shopping',      icon: '🛒', color: '#9EAF9A' },  // Sage Green
@@ -791,8 +1028,7 @@
       { label: 'Workout',               icon: '💪', color: '#C9A29A' },  // Dusty Rose
     ];
 
-    // ─── Morandi color palette ────────────────────────────────────
-    // Morandi colors are soft, muted, and earthy — named here for reference
+    // Morandi colors are soft, muted, and earthy
     const COLORS = [
       { name: 'Dusty Rose',    hex: '#C9A29A' },
       { name: 'Sage Green',    hex: '#9EAF9A' },
@@ -809,7 +1045,7 @@
     // The color the user has currently selected (defaults to the first one)
     let selectedColor = COLORS[0].hex;
 
-    // ─── Build the color swatch buttons ──────────────────────────
+    // ─── Build the color swatch buttons ──────────────────────────────
     const swatchContainer = document.getElementById('swatches');
 
     COLORS.forEach((color) => {
@@ -823,7 +1059,6 @@
 
       // When a swatch is clicked, update the selected color
       btn.addEventListener('click', () => {
-        // Remove 'selected' from whichever swatch had it before
         document.querySelectorAll('.swatch').forEach(s => s.classList.remove('selected'));
         btn.classList.add('selected');
         selectedColor = color.hex;
@@ -832,7 +1067,7 @@
       swatchContainer.appendChild(btn);
     });
 
-    // ─── Build the shortcut buttons ──────────────────────────────
+    // ─── Build the shortcut buttons ──────────────────────────────────
     const shortcutContainer = document.getElementById('shortcuts');
 
     SHORTCUTS.forEach((shortcut) => {
@@ -840,12 +1075,10 @@
       btn.classList.add('shortcut-btn');
       btn.style.borderTopColor = shortcut.color;   // color accent on top edge
 
-      // Emoji icon
       const icon = document.createElement('span');
       icon.classList.add('shortcut-icon');
       icon.textContent = shortcut.icon;
 
-      // Text label
       const lbl = document.createElement('span');
       lbl.classList.add('shortcut-label');
       lbl.textContent = shortcut.label;
@@ -853,40 +1086,44 @@
       btn.appendChild(icon);
       btn.appendChild(lbl);
 
-      // Clicking a shortcut instantly adds that task with its preset color
-      btn.addEventListener('click', () => buildTask(shortcut.label, shortcut.color));
+      // Clicking a shortcut writes directly to Firestore
+      btn.addEventListener('click', () => addTaskToFirestore(shortcut.label, shortcut.color));
 
       shortcutContainer.appendChild(btn);
     });
 
-    // ─── Live date and clock ──────────────────────────────────────
+
+    // ═══════════════════════════════════════════════════════════════
+    //  LIVE DATE & CLOCK
+    // ═══════════════════════════════════════════════════════════════
+
     // This function runs once per second to keep the display current
     function updateClock() {
       const now = new Date();
 
-      // Format the weekday and date, e.g. "Friday, June 6 2026"
+      // Format: "Friday, June 6 2026"
       const dateStr = now.toLocaleDateString('en-US', {
-        weekday: 'long',
-        year:    'numeric',
-        month:   'long',
-        day:     'numeric',
+        weekday: 'long', year: 'numeric', month: 'long', day: 'numeric',
       });
 
-      // Format the time with leading zeros, e.g. "09:05:03"
+      // Format: "09:05:03"
       const hours   = String(now.getHours()).padStart(2, '0');
       const minutes = String(now.getMinutes()).padStart(2, '0');
       const seconds = String(now.getSeconds()).padStart(2, '0');
       const timeStr = `${hours}:${minutes}:${seconds}`;
 
-      // Put the formatted strings into the page
       document.getElementById('date-display').textContent = dateStr;
       document.getElementById('time-display').textContent = timeStr;
     }
 
     updateClock();                        // run immediately so there's no blank flash
-    setInterval(updateClock, 1000);       // then repeat every 1000ms (1 second)
+    setInterval(updateClock, 1000);       // then repeat every second
 
-    // ─── Update the task counter ─────────────────────────────────
+
+    // ═══════════════════════════════════════════════════════════════
+    //  TASK COUNTER
+    // ═══════════════════════════════════════════════════════════════
+
     // Counts all task items that are NOT checked off and updates the badge
     function updateCounter() {
       const all       = document.querySelectorAll('.task-item');
@@ -902,118 +1139,129 @@
       badge.childNodes[1].textContent = remaining === 1 ? ' task remaining' : ' tasks remaining';
     }
 
-    // ─── Tasks: load & save to localStorage ─────────────────────
-    // Tasks are stored as an array so they survive page refreshes and
-    // tab closes. Each task looks like:
-    // { id: 1234, text: "Buy milk", color: "#C9A29A", done: false }
 
-    function loadTasks() {
-      try {
-        return JSON.parse(localStorage.getItem('tasks') || '[]');
-      } catch {
-        return [];
-      }
-    }
+    // ═══════════════════════════════════════════════════════════════
+    //  TASKS — FIRESTORE SYNC
+    //
+    //  How it works:
+    //  1. When the user adds/deletes/checks a task → we write to Firestore.
+    //  2. Firestore sends the change back to us via onSnapshot.
+    //  3. onSnapshot re-renders the list from the latest Firestore data.
+    //  This means tasks sync in real time across all devices!
+    // ═══════════════════════════════════════════════════════════════
 
-    // Read the current task items out of the DOM and save them to localStorage.
-    function saveTasks() {
-      const tasks = [...document.querySelectorAll('.task-item')].map(li => ({
-        id:    li.dataset.id,
-        text:  li.querySelector('.task-text').textContent,
-        color: li.style.borderLeftColor,
-        done:  li.classList.contains('done'),
-      }));
-      localStorage.setItem('tasks', JSON.stringify(tasks));
-    }
-
-    // ─── Core function: build and insert one task item ───────────
-    // Both the Add button and shortcut buttons call this.
-    // text  = the task label
-    // color = the Morandi hex color for the left stripe
-    // done  = whether the task starts checked off (used when restoring)
-    // id    = unique id (defaults to now; passed in when restoring)
-    function buildTask(text, color, done = false, id = Date.now()) {
-      if (!text) return;
-
-      // Hide the "no tasks yet" message
-      document.getElementById('empty-msg').style.display = 'none';
-
+    // ─── Build one task DOM element from Firestore data ──────────────
+    // firestoreId = the document ID (Firestore assigns this automatically)
+    // This function only builds the HTML — it does NOT write anything.
+    function buildTaskElement(firestoreId, text, color, done) {
       // Create the list item
       const li = document.createElement('li');
       li.classList.add('task-item');
-      li.dataset.id = id;
+      li.dataset.id = firestoreId;
       li.style.borderLeftColor = color;
       if (done) li.classList.add('done');
 
-      // Checkbox — marks the task done when ticked
+      // Checkbox — when ticked, update the 'done' field in Firestore
       const checkbox = document.createElement('input');
-      checkbox.type = 'checkbox';
+      checkbox.type    = 'checkbox';
       checkbox.checked = done;
       checkbox.addEventListener('change', () => {
-        li.classList.toggle('done', checkbox.checked);
-        updateCounter();
-        saveTasks();
+        // Update only the 'done' field (leave text and color untouched)
+        db.collection('users').doc(currentUid).collection('tasks')
+          .doc(firestoreId)
+          .update({ done: checkbox.checked });
       });
 
-      // Task label text
+      // Task label
       const label = document.createElement('span');
       label.classList.add('task-text');
       label.textContent = text;
 
-      // Delete button
+      // Delete button — removes the document from Firestore
       const del = document.createElement('button');
       del.classList.add('delete-btn');
       del.textContent = '×';
       del.title = 'Delete task';
       del.addEventListener('click', () => {
-        li.remove();
-        if (document.querySelectorAll('.task-item').length === 0) {
-          document.getElementById('empty-msg').style.display = '';
-        }
-        updateCounter();
-        saveTasks();
+        db.collection('users').doc(currentUid).collection('tasks')
+          .doc(firestoreId)
+          .delete();
       });
 
       li.appendChild(checkbox);
       li.appendChild(label);
       li.appendChild(del);
-
-      // Insert at the top of the list
-      const list = document.getElementById('task-list');
-      list.insertBefore(li, list.firstChild);
-
-      updateCounter();
-      saveTasks();
+      return li;
     }
 
-    // ─── Restore saved tasks on page load ────────────────────────
-    // Reload whatever tasks were saved last session — they stay until
-    // the user manually deletes them.
-    function renderTasks() {
-      loadTasks().reverse().forEach(t => buildTask(t.text, t.color, t.done, t.id));
-    }
-    renderTasks();
+    // ─── Listen for real-time task changes from Firestore ────────────
+    // onSnapshot fires immediately with the current data, then again
+    // every time any task document changes (add, edit, delete).
+    function listenToTasks(uid) {
+      // Cancel any previous listener before starting a new one
+      if (unsubscribeTasks) unsubscribeTasks();
 
-    // ─── Add a task from the text input ──────────────────────────
-    // Reads the input field, calls buildTask, then clears the field
+      // Path: users → {this user's ID} → tasks collection
+      // orderBy('createdAt', 'desc') = newest tasks appear at the top
+      unsubscribeTasks = db
+        .collection('users').doc(uid).collection('tasks')
+        .orderBy('createdAt', 'desc')
+        .onSnapshot((snapshot) => {
+          // Clear the current list (we'll rebuild it from fresh Firestore data)
+          const list = document.getElementById('task-list');
+          list.querySelectorAll('.task-item').forEach(el => el.remove());
+
+          if (snapshot.empty) {
+            // No tasks — show the "No tasks yet" message
+            document.getElementById('empty-msg').style.display = '';
+          } else {
+            document.getElementById('empty-msg').style.display = 'none';
+            // Build a DOM element for each task document and add it to the list
+            snapshot.forEach((doc) => {
+              const { text, color, done } = doc.data();
+              const li = buildTaskElement(doc.id, text, color, done || false);
+              list.appendChild(li);
+            });
+          }
+          updateCounter();
+        });
+    }
+
+    // ─── Write a new task to Firestore ───────────────────────────────
+    // Firestore's onSnapshot will automatically re-render the list.
+    function addTaskToFirestore(text, color) {
+      if (!text || !currentUid) return;
+      db.collection('users').doc(currentUid).collection('tasks').add({
+        text,
+        color,
+        done: false,
+        // serverTimestamp() uses the server's clock so ordering is correct
+        // even when two devices add tasks at the same time
+        createdAt: firebase.firestore.FieldValue.serverTimestamp(),
+      });
+    }
+
+    // ─── Read the input field and add a task ─────────────────────────
     function addTask() {
       const input = document.getElementById('task-input');
       const text  = input.value.trim();
       if (!text) return;
-      buildTask(text, selectedColor);
+      addTaskToFirestore(text, selectedColor);
       input.value = '';
       input.focus();
     }
 
-    // ─── Wire up the Add button and the Enter key ─────────────────
+    // Wire up the Add button and the Enter key
     document.getElementById('add-btn').addEventListener('click', addTask);
-
-    // Allow pressing Enter in the text field to add a task
     document.getElementById('task-input').addEventListener('keydown', (e) => {
       if (e.key === 'Enter') addTask();
     });
 
-    // ─── Weather: code → emoji + description ─────────────────────
+
+    // ═══════════════════════════════════════════════════════════════
+    //  WEATHER
+    // ═══════════════════════════════════════════════════════════════
+
     // Open-Meteo returns a numeric "weather code" — this table translates it
     const WEATHER_CODES = {
       0:  { emoji: '☀️',  desc: 'Clear sky' },
@@ -1042,16 +1290,13 @@
       99: { emoji: '⛈️',  desc: 'Severe thunderstorm' },
     };
 
-    // ─── Weather: main fetch function ────────────────────────────
     // Steps: 1) get GPS coords  2) fetch city name  3) fetch weather
     async function initWeather() {
-      // Check that the browser supports geolocation at all
       if (!navigator.geolocation) {
         showWeatherError();
         return;
       }
 
-      // Ask the browser for the user's current position
       navigator.geolocation.getCurrentPosition(
         async (pos) => {
           const lat = pos.coords.latitude;
@@ -1060,13 +1305,11 @@
           try {
             // Run both fetches at the same time to save time (Promise.all)
             const [geoRes, weatherRes] = await Promise.all([
-
               // Nominatim: converts GPS coords → city name (free, no API key)
               fetch(
                 `https://nominatim.openstreetmap.org/reverse?lat=${lat}&lon=${lon}&format=json`,
                 { headers: { 'Accept-Language': 'en' } }
               ),
-
               // Open-Meteo: current weather (free, no API key)
               fetch(
                 `https://api.open-meteo.com/v1/forecast` +
@@ -1080,21 +1323,16 @@
             const geoData     = await geoRes.json();
             const weatherData = await weatherRes.json();
 
-            // Pull out the city name from the geocoding response
-            const addr = geoData.address || {};
-            const city = addr.city || addr.town || addr.village || addr.county || 'Your location';
-
-            // Pull out current weather values
+            const addr    = geoData.address || {};
+            const city    = addr.city || addr.town || addr.village || addr.county || 'Your location';
             const cur     = weatherData.current;
             const code    = cur.weather_code;
             const weather = WEATHER_CODES[code] || { emoji: '🌡️', desc: 'Unknown' };
 
-            // Format today's date for the weather card header
             const today = new Date().toLocaleDateString('en-US', {
               weekday: 'short', month: 'short', day: 'numeric',
             });
 
-            // Fill in all the weather card elements
             document.getElementById('weather-location').textContent   = `📍 ${city}`;
             document.getElementById('weather-date-label').textContent = today;
             document.getElementById('weather-emoji').textContent      = weather.emoji;
@@ -1104,34 +1342,36 @@
             document.getElementById('weather-wind').textContent       = `💨 ${Math.round(cur.wind_speed_10m)} mph`;
             document.getElementById('weather-feels').textContent      = `🌡️ Feels like ${Math.round(cur.apparent_temperature)}°F`;
 
-            // Hide the loading message and show the content
             document.getElementById('weather-loading').style.display = 'none';
             document.getElementById('weather-content').style.display = 'block';
 
           } catch (err) {
-            // Network error or bad response — show the error state
             showWeatherError();
           }
         },
-        // Called if the user denies location permission
         () => showWeatherError()
       );
     }
 
-    // Shows the error message inside the weather card
     function showWeatherError() {
       document.getElementById('weather-loading').style.display = 'none';
       document.getElementById('weather-error').style.display   = 'block';
     }
 
-    // Kick off the weather fetch when the page loads
+    // Kick off weather once the user is signed in (weather card is visible)
+    // We start it inside onAuthStateChanged above, but need it here too for
+    // the service worker / PWA case. We'll just call it once the app is shown.
+    // Actually, initWeather() is called in the auth handler — but since the
+    // main-app div is hidden until sign-in, we call it after showing the app.
+    // To keep things simple, we call it here and it will run when the card
+    // is first displayed.
     initWeather();
 
-    // ─── Important Dates & Events ─────────────────────────────────
 
-    // Events are stored as an array in localStorage so they survive
-    // page refreshes and work offline.
-    // Each event looks like: { id: 1234, name: "Mom's Birthday", date: "2026-06-20" }
+    // ═══════════════════════════════════════════════════════════════
+    //  EVENTS — FIRESTORE SYNC
+    //  Same pattern as tasks: write to Firestore, onSnapshot re-renders.
+    // ═══════════════════════════════════════════════════════════════
 
     // Morandi colors cycled through for event left-stripe accents
     const EVENT_COLORS = [
@@ -1143,22 +1383,8 @@
       '#B5908A',  // Dusty Mauve
     ];
 
-    // Load saved events from localStorage (returns [] if none saved yet)
-    function loadEvents() {
-      try {
-        return JSON.parse(localStorage.getItem('events') || '[]');
-      } catch {
-        return [];
-      }
-    }
-
-    // Save the current events array back to localStorage
-    function saveEvents(events) {
-      localStorage.setItem('events', JSON.stringify(events));
-    }
-
-    // Calculate how many days until a date string like "2026-06-20"
-    // Returns a negative number if the date has already passed
+    // Calculate how many days until a date string like "2026-06-20".
+    // Returns a negative number if the date has already passed.
     function daysUntil(dateStr) {
       const today  = new Date();
       today.setHours(0, 0, 0, 0);                    // strip time so we compare whole days
@@ -1175,85 +1401,96 @@
       return `${Math.abs(days)} days ago`;
     }
 
-    // Build and render all events into the list, sorted soonest-first
-    function renderEvents() {
-      const events = loadEvents();
-      const list   = document.getElementById('events-list');
-      const empty  = document.getElementById('events-empty');
+    // ─── Build one event DOM element from Firestore data ─────────────
+    function buildEventElement(firestoreId, name, date, index) {
+      const days  = daysUntil(date);
+      const color = EVENT_COLORS[index % EVENT_COLORS.length];
 
-      // Clear everything except the empty message placeholder
-      list.querySelectorAll('.event-item').forEach(el => el.remove());
+      const li = document.createElement('li');
+      li.classList.add('event-item');
+      if (days < 0) li.classList.add('past');   // fade past events
+      li.style.borderLeftColor = color;
 
-      if (events.length === 0) {
-        empty.style.display = '';
-        return;
-      }
-      empty.style.display = 'none';
+      // Countdown badge ("in 5 days", "Today! 🎉", etc.)
+      const badge = document.createElement('div');
+      badge.classList.add('event-countdown');
+      if (days >= 0 && days <= 2) badge.classList.add('soon');  // warm highlight
+      badge.textContent = countdownLabel(days);
 
-      // Sort: upcoming first (by date ascending), then past events at the bottom
-      const sorted = [...events].sort((a, b) => {
-        const da = daysUntil(a.date);
-        const db = daysUntil(b.date);
-        // Separate upcoming (≥0) from past (<0)
-        if (da >= 0 && db < 0) return -1;
-        if (da < 0 && db >= 0) return  1;
-        return da - db;
+      // Event name + formatted date
+      const info = document.createElement('div');
+      info.classList.add('event-info');
+
+      const nameEl = document.createElement('div');
+      nameEl.classList.add('event-name');
+      nameEl.textContent = name;
+
+      const dateEl = document.createElement('div');
+      dateEl.classList.add('event-date-text');
+      dateEl.textContent = new Date(date + 'T00:00:00').toLocaleDateString('en-US', {
+        weekday: 'short', month: 'short', day: 'numeric', year: 'numeric',
       });
 
-      sorted.forEach((event, index) => {
-        const days  = daysUntil(event.date);
-        const color = EVENT_COLORS[index % EVENT_COLORS.length];
+      info.appendChild(nameEl);
+      info.appendChild(dateEl);
 
-        // ── List item ──
-        const li = document.createElement('li');
-        li.classList.add('event-item');
-        if (days < 0) li.classList.add('past');   // fade past events
-        li.style.borderLeftColor = color;
-
-        // ── Countdown badge ──
-        const badge = document.createElement('div');
-        badge.classList.add('event-countdown');
-        if (days >= 0 && days <= 2) badge.classList.add('soon');  // warm highlight
-        badge.textContent = countdownLabel(days);
-
-        // ── Event name + date text ──
-        const info = document.createElement('div');
-        info.classList.add('event-info');
-
-        const nameEl = document.createElement('div');
-        nameEl.classList.add('event-name');
-        nameEl.textContent = event.name;
-
-        // Format the date nicely, e.g. "Fri, Jun 20 2026"
-        const dateEl = document.createElement('div');
-        dateEl.classList.add('event-date-text');
-        dateEl.textContent = new Date(event.date + 'T00:00:00').toLocaleDateString('en-US', {
-          weekday: 'short', month: 'short', day: 'numeric', year: 'numeric',
-        });
-
-        info.appendChild(nameEl);
-        info.appendChild(dateEl);
-
-        // ── Delete button ──
-        const del = document.createElement('button');
-        del.classList.add('event-delete-btn');
-        del.textContent = '×';
-        del.title = 'Remove event';
-        del.addEventListener('click', () => {
-          // Remove this event from the saved array by its unique id
-          const updated = loadEvents().filter(e => e.id !== event.id);
-          saveEvents(updated);
-          renderEvents();
-        });
-
-        li.appendChild(badge);
-        li.appendChild(info);
-        li.appendChild(del);
-        list.appendChild(li);
+      // Delete button — removes the document from Firestore
+      const del = document.createElement('button');
+      del.classList.add('event-delete-btn');
+      del.textContent = '×';
+      del.title = 'Remove event';
+      del.addEventListener('click', () => {
+        db.collection('users').doc(currentUid).collection('events')
+          .doc(firestoreId)
+          .delete();
       });
+
+      li.appendChild(badge);
+      li.appendChild(info);
+      li.appendChild(del);
+      return li;
     }
 
-    // Add a new event from the input fields
+    // ─── Listen for real-time event changes from Firestore ───────────
+    function listenToEvents(uid) {
+      if (unsubscribeEvents) unsubscribeEvents();
+
+      unsubscribeEvents = db
+        .collection('users').doc(uid).collection('events')
+        .onSnapshot((snapshot) => {
+          const list  = document.getElementById('events-list');
+          const empty = document.getElementById('events-empty');
+
+          // Clear and rebuild from fresh Firestore data
+          list.querySelectorAll('.event-item').forEach(el => el.remove());
+
+          if (snapshot.empty) {
+            empty.style.display = '';
+            return;
+          }
+          empty.style.display = 'none';
+
+          // Collect all events into an array so we can sort them
+          const events = [];
+          snapshot.forEach(doc => events.push({ id: doc.id, ...doc.data() }));
+
+          // Sort: upcoming events first (sorted by closeness), past events last
+          events.sort((a, b) => {
+            const da = daysUntil(a.date);
+            const db_ = daysUntil(b.date);
+            if (da >= 0 && db_ < 0) return -1;  // a is upcoming, b is past → a first
+            if (da < 0 && db_ >= 0) return  1;  // a is past, b is upcoming → b first
+            return da - db_;                      // both same side → sort by closeness
+          });
+
+          events.forEach((event, index) => {
+            const li = buildEventElement(event.id, event.name, event.date, index);
+            list.appendChild(li);
+          });
+        });
+    }
+
+    // ─── Add a new event to Firestore ────────────────────────────────
     function addEvent() {
       const nameInput = document.getElementById('event-name-input');
       const dateInput = document.getElementById('event-date-input');
@@ -1261,31 +1498,30 @@
       const name = nameInput.value.trim();
       const date = dateInput.value;   // "YYYY-MM-DD" string from the date picker
 
-      if (!name || !date) return;    // require both fields
+      if (!name || !date || !currentUid) return;
 
-      const events = loadEvents();
-      events.push({ id: Date.now(), name, date });
-      saveEvents(events);
-      renderEvents();
+      db.collection('users').doc(currentUid).collection('events').add({
+        name,
+        date,
+        createdAt: firebase.firestore.FieldValue.serverTimestamp(),
+      });
 
-      // Clear the inputs
       nameInput.value = '';
       dateInput.value = '';
       nameInput.focus();
     }
 
-    // Wire up the Add button and Enter key on the name field
+    // Wire up the event Add button and the Enter key
     document.getElementById('event-add-btn').addEventListener('click', addEvent);
     document.getElementById('event-name-input').addEventListener('keydown', (e) => {
       if (e.key === 'Enter') addEvent();
     });
 
-    // Render saved events immediately when the page loads
-    renderEvents();
 
-    // ─── Birthday Popup ───────────────────────────────────────────
-    // Shows a special modal on June 17. Confetti is launched in waves
-    // using the same Morandi colors as the rest of the app.
+    // ═══════════════════════════════════════════════════════════════
+    //  BIRTHDAY POPUP
+    //  Shows on June 17. Confetti uses the same Morandi colors.
+    // ═══════════════════════════════════════════════════════════════
 
     const BDAY_COLORS = [
       '#C9A29A', '#9EAF9A', '#8FA3B1', '#C9B99A',
@@ -1297,7 +1533,6 @@
       const el = document.createElement('div');
       el.classList.add('bday-confetti');
 
-      // Random size, shape (circle or rounded rect), color, position, duration
       const size     = Math.random() * 9 + 6;                       // 6–15 px
       const isCircle = Math.random() > 0.45;
       const duration = Math.random() * 1.8 + 1.2;                   // 1.2–3 s
@@ -1311,34 +1546,29 @@
       el.style.animationDuration = duration + 's';
 
       card.appendChild(el);
-      // Remove from DOM once the animation finishes to keep things tidy
       setTimeout(() => el.remove(), duration * 1000);
     }
 
     // Launch multiple waves of confetti so the effect lasts a few seconds
     function launchConfetti(card) {
-      const TOTAL  = 55;   // total confetti pieces
-      const SPREAD = 2800; // spread them over ~2.8 seconds
-
+      const TOTAL  = 55;
+      const SPREAD = 2800;
       for (let i = 0; i < TOTAL; i++) {
         setTimeout(() => spawnConfetti(card), (i / TOTAL) * SPREAD);
       }
     }
 
-    // Show the birthday modal and kick off the confetti
     function showBirthdayModal() {
       const modal = document.getElementById('birthday-modal');
       const card  = document.getElementById('bday-card');
       modal.style.display = 'block';
       launchConfetti(card);
 
-      // Re-launch confetti every 4 seconds for as long as the modal is open
       const interval = setInterval(() => {
         if (modal.style.display === 'none') { clearInterval(interval); return; }
         launchConfetti(card);
       }, 4000);
 
-      // Close when the button or the backdrop is clicked
       document.getElementById('bday-close-btn').addEventListener('click', () => {
         modal.style.display = 'none';
         clearInterval(interval);
@@ -1359,10 +1589,13 @@
 
     checkBirthday();
 
-    // ─── Register the Service Worker ─────────────────────────────
-    // This tells the browser to install sw.js in the background.
-    // Once registered, the service worker caches the app files so
-    // everything works offline on future visits.
+
+    // ═══════════════════════════════════════════════════════════════
+    //  SERVICE WORKER (PWA offline support)
+    // ═══════════════════════════════════════════════════════════════
+
+    // This registers sw.js in the background. Once registered, the service
+    // worker caches the app files so it works offline on future visits.
     if ('serviceWorker' in navigator) {
       navigator.serviceWorker.register('./sw.js')
         .catch((err) => console.warn('Service worker registration failed:', err));
