@@ -175,6 +175,24 @@
       color: #7a6e68;
     }
 
+    /* The small bell button to enable notifications */
+    #notif-btn {
+      background: none;
+      border: 1.5px solid #ddd6cf;
+      border-radius: 8px;
+      color: #a89e98;
+      font-size: 0.78rem;
+      padding: 3px 10px;
+      cursor: pointer;
+      font-family: inherit;
+      transition: border-color 0.2s, color 0.2s;
+    }
+
+    #notif-btn:hover {
+      border-color: #b5a8a0;
+      color: #7a6e68;
+    }
+
     /* ─── Main card container ───────────────────────────────────── */
     .card {
       background: #faf8f5;
@@ -851,6 +869,8 @@
         <img id="user-avatar" src="" alt="Profile picture" />
         <!-- Display name from Google account -->
         <span id="user-name"></span>
+        <!-- Tapping this asks for notification permission -->
+        <button id="notif-btn">🔔 Notify me</button>
         <!-- Clicking this signs the user out -->
         <button id="sign-out-btn">Sign out</button>
       </div>
@@ -1037,8 +1057,8 @@
         listenToTasks(user.uid);
         listenToEvents(user.uid);
 
-        // Ask for notification permission and save this device's push token
-        setupPushNotifications(user.uid);
+        // Wire up the "🔔 Notify me" button to request notification permission
+        document.getElementById('notif-btn').onclick = () => setupPushNotifications(user.uid);
 
       } else {
         // ── USER IS SIGNED OUT ───────────────────────────────────────
@@ -1659,6 +1679,9 @@
           await db.collection('users').doc(uid).set({
             fcmTokens: firebase.firestore.FieldValue.arrayUnion(token),
           }, { merge: true });   // merge: true means don't overwrite other fields
+
+          // Hide the button now that notifications are set up
+          document.getElementById('notif-btn').style.display = 'none';
         }
       } catch (err) {
         console.warn('Push notification setup failed:', err);
