@@ -3,8 +3,8 @@
 // It checks everyone's upcoming events every morning and sends
 // push notifications to remind them.
 
-const functions = require('firebase-functions');
-const admin     = require('firebase-admin');
+const { onSchedule } = require('firebase-functions/v2/scheduler');
+const admin = require('firebase-admin');
 
 // Connect to Firestore and Firebase Messaging on the server side
 admin.initializeApp();
@@ -12,10 +12,9 @@ const db = admin.firestore();
 
 // ─── Scheduled function: runs every day at 9:00 AM ──────────────────
 // The schedule uses cron format: '0 9 * * *' means "at 9:00 every day"
-exports.sendEventReminders = functions.pubsub
-  .schedule('0 9 * * *')
-  .timeZone('America/New_York')   // change this to your timezone if needed
-  .onRun(async () => {
+exports.sendEventReminders = onSchedule(
+  { schedule: '0 9 * * *', timeZone: 'America/New_York' },
+  async () => {
 
     // Get today's date at midnight so we can compare whole days
     const today = new Date();
@@ -32,8 +31,8 @@ exports.sendEventReminders = functions.pubsub
 
     await Promise.all(promises);
     console.log('Event reminder check complete.');
-  });
-
+  }
+);
 
 // ─── Check one user's events and send notifications if needed ────────
 async function checkUserEvents(uid, today) {
@@ -59,8 +58,8 @@ async function checkUserEvents(uid, today) {
     const { name, date } = eventDoc.data();
 
     // Calculate how many days until this event
-    const eventDate  = new Date(date + 'T00:00:00');
-    const daysUntil  = Math.round((eventDate - today) / (1000 * 60 * 60 * 24));
+    const eventDate = new Date(date + 'T00:00:00');
+    const daysUntil = Math.round((eventDate - today) / (1000 * 60 * 60 * 24));
 
     // Only notify if the event is in exactly 7, 3, or 1 day(s)
     if (![7, 3, 1].includes(daysUntil)) return;
