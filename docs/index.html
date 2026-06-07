@@ -1057,8 +1057,12 @@
         listenToTasks(user.uid);
         listenToEvents(user.uid);
 
-        // Wire up the "🔔 Notify me" button to request notification permission
-        document.getElementById('notif-btn').onclick = () => setupPushNotifications(user.uid);
+        // Hide the notify button immediately if permission was already granted
+        if (Notification.permission === 'granted') {
+          document.getElementById('notif-btn').style.display = 'none';
+        } else {
+          document.getElementById('notif-btn').onclick = () => setupPushNotifications(user.uid);
+        }
 
       } else {
         // ── USER IS SIGNED OUT ───────────────────────────────────────
